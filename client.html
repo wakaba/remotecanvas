@@ -43,6 +43,7 @@ menu {
   max-height: 120px; /* 160px - 20px * 2 */
   overflow: auto;
   background-color: #C0C0C0;
+  font-size: smaller;
 }
 #panel p {
   margin: 0;
@@ -77,17 +78,29 @@ menu {
 <a href="javascript:setProp ('strokeStyle', 'white'); togglePanel ()" style="color: white">white</a>]
 </p>
 
+<hr>
+
+<p>
+<a href="javascript:savePNG (); togglePanel ()" class=editor-only>PNGize</a>
+<a href="javascript:haiku (); togglePanel ()" class=editor-only>Haiku</a>
+</p>
+
+<p>
+<a href="client.html?mode=editor" id=clone-link>Clone</a>
+<a href="client.html?mode=editor">New</a></menu>
+</p>
+
+<p>
+<a href="server.cgi?mode=list" rel=index>List</a>
+</p>
+
 </section>
 
 <menu><a href="javascript:togglePanel ()" class=editor-only>Panel</a>
-<a href="javascript:savePNG ()" class=editor-only>PNGize</a>
 <a href="client.html?mode=editor" id=edit-link rel=edit class=viewer-only>Edit</a>
 <a href="client.html?mode=viewer" id=view-link class=editor-only>View</a>
-<a href="server.cgi?mode=list" rel=index>List</a>
 <a href="server.cgi?mode=prev" id=prev-link rel=prev>Prev</a>
-<a href="server.cgi?mode=next" id=next-link rel=next>Next</a>
-<a href="client.html?mode=editor" id=clone-link>Clone</a>
-<a href="client.html?mode=editor">New</a></menu>
+<a href="server.cgi?mode=next" id=next-link rel=next>Next</a></menu>
 
 <script>
   function $ (id) { return document.getElementById (id) }
@@ -233,5 +246,15 @@ menu {
 //      if (xhr.status == 201) {
 //        location.href = xhr.getResponseHeader ('Location');
 //      }
+    }
+
+    function haiku () {
+      var purl = url.replace (/server\.cgi/, 'proxy.php');
+      var data = canvas.toDataURL ('image/png');
+      var xhr = new XMLHttpRequest ();
+      xhr.open ('POST', purl + ';mode=haiku', true);
+      xhr.setRequestHeader ('Content-Type', 'text/plain');
+      xhr.setRequestHeader ('X-Data-URL', data);
+      xhr.send (null);
     }
 </script>

@@ -111,6 +111,53 @@ if ($param->{mode} eq '' and $ENV{REQUEST_METHOD} eq 'POST') {
 
   my $l_url = qq<http://$ENV{SERVER_NAME}$ENV{SCRIPT_NAME}/../$data_file_name.png>;
   print "Status: 201 Created\nLocation: $l_url\nContent-Type: text/plain\n\n";
+} elsif ($param->{mode} eq 'haiku' and $ENV{REQUEST_METHOD} eq 'POST') {
+  die if $ENV{CONTENT_LENGTH} > 100_000;
+
+  my $url = $ENV{HTTP_X_DATA_URL};
+  unless ($url) {
+    read STDIN, $url, $ENV{CONTENT_LENGTH};
+  }
+  die unless $url =~ s[^data:image/png;base64,][];
+
+  require MIME::Base64;
+  my $png = MIME::Base64::decode_base64 ($url);
+
+  my $boundary = '';
+
+  if ($ENV{BOUNDARY}) {
+    $boundary = $ENV{BOUNDARY};
+  } else {
+    $boundary .= [0..9, 'A'..'Z', 'a'..'z']->[rand 62] for 1..30;
+    #print "Content-Type: multipart/form-data; boundary=$boundary\x0D\x0A\x0D\x0A";
+  }
+
+  my $source = 'Remote Canvas';
+  if ($ENV{HTTP_USER_AGENT} =~ /Nintendo DSi/) {
+    $source .= ' (DSi)';
+  } else {
+    $source .= ' (Web)';
+  }
+
+  my $body = "--$boundary\x0D\x0AContent-Type: image/png\x0D\x0AContent-Disposition: form-data; name=file; filename=$boundary.png\x0D\x0A\x0D\x0A$png\x0D\x0A--$boundary\x0D\x0AContent-Disposition: form-data; name=source\x0D\x0A\x0D\x0A$source\x0D\x0A--$boundary--\x0D\x0A";
+  
+  require LWP::UserAgent;
+  my $ua = LWP::UserAgent->new;
+  my $req = HTTP::Request->new (POST => q<http://h.hatena.ne.jp/api/statuses/update.json>);
+  $req->authorization_basic ($ENV{PHP_AUTH_USER}, $ENV{PHP_AUTH_PW});
+  $req->content_type ('multipart/form-data; boundary=' . $boundary);
+  $req->content ($body);
+  my $res = $ua->request ($req);
+  warn $req->headers->as_string;
+  warn $res->as_string;
+
+  if ($res->is_success) {
+    print "Status: 201 Posted\nContent-Type: text/plain\n\n" unless $ENV{VIA_PHP_PROXY};
+    print 201;
+  } else {
+    print "Status: 401 Failed\nContent-Type: text/plain\n\n" unless $ENV{VIA_PHP_PROXY};
+    print 401;
+  }
 } else {
   print "Content-Type: text/plain\n\n";
   open my $data_file, '<', $data_file_name or die "$0: $data_file_name: $!";
