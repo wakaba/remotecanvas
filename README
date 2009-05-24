@@ -1,0 +1,21 @@
+Remote Canvas
+~~~~~~~~~~~~~
+
+Files
+
+- server.cgi
+- client.html
+
+Usage
+
+$ chmod u+x server.cgi
+$ mkdir canvas-data
+$ your-browser path/to/client.html
+
+Author
+
+Wakaba <w@suika.fam.cx>.
+
+License
+
+See LICENSE.

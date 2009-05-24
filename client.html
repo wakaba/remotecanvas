@@ -1,0 +1,215 @@
+<!DOCTYPE HTML>
+<html lang=en>
+<title>Canvas</title>
+<meta name="viewport" content="width=device-width">
+<style>
+body {
+  margin: 0;
+  padding: 0;
+  background: #C0C0C0;
+}
+canvas {
+  width: 240px;
+  background: white;
+}
+.mode-viewer canvas {
+  width: 100%;
+}
+a {
+  display: inline-block;
+  min-width: 1em;
+  text-align: center;
+}
+menu {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-size: 8px;
+}
+.mode-editor menu .viewer-only,
+.mode-viewer menu .editor-only {
+  display: none;
+}
+[hidden] {
+  display: none;
+}
+#panel {
+  position: absolute;
+  left: 20px;
+  width: 200px; /* 240px - 20px * 2 */
+  top: 20px;
+  max-height: 120px; /* 160px - 20px * 2 */
+  overflow: auto;
+  background-color: #C0C0C0;
+}
+#panel p {
+  margin: 0;
+  padding: 0;
+}
+</style>
+
+<body>
+
+<canvas width=240 height=160></canvas>
+
+<section id=panel hidden>
+
+<p>
+[<a href="javascript:setProp ('lineWidth', 1); togglePanel ()">1</a>
+<a href="javascript:setProp ('lineWidth', 2); togglePanel ()">3</a>
+<a href="javascript:setProp ('lineWidth', 3); togglePanel ()">3</a>
+<a href="javascript:setProp ('lineWidth', 5); togglePanel ()">5</a>
+<a href="javascript:setProp ('lineWidth', 10); togglePanel ()">10</a>]
+</p>
+
+<p>
+[<a href="javascript:setProp ('strokeStyle', 'black'); togglePanel ()" style="color: black">black</a>
+<a href="javascript:setProp ('strokeStyle', 'red'); togglePanel ()" style="color: red">red</a>
+<a href="javascript:setProp ('strokeStyle', 'green'); togglePanel ()" style="color: green">green</a>
+<a href="javascript:setProp ('strokeStyle', 'blue'); togglePanel ()" style="color: blue">blue</a>
+<a href="javascript:setProp ('strokeStyle', 'orange'); togglePanel ()" style="color: orange">orange</a>
+<a href="javascript:setProp ('strokeStyle', 'yellow'); togglePanel ()" style="color: yellow">yellow</a>
+<a href="javascript:setProp ('strokeStyle', 'pink'); togglePanel ()" style="color: pink">pink</a>
+<a href="javascript:setProp ('strokeStyle', 'purple'); togglePanel ()" style="color: purple">purple</a>
+<a href="javascript:setProp ('strokeStyle', 'gray'); togglePanel ()" style="color: gray">gray</a>
+<a href="javascript:setProp ('strokeStyle', 'white'); togglePanel ()" style="color: white">white</a>]
+</p>
+
+</section>
+
+<menu><a href="javascript:togglePanel ()" class=editor-only>Panel</a>
+<a href="client.html?mode=editor" id=edit-link rel=edit class=viewer-only>Edit</a>
+<a href="client.html?mode=viewer" id=view-link class=editor-only>View</a>
+<a href="server.cgi?mode=list" rel=index>List</a>
+<a href="server.cgi?mode=prev" id=prev-link rel=prev>Prev</a>
+<a href="server.cgi?mode=next" id=next-link rel=next>Next</a>
+<a href="client.html?mode=editor">New</a></menu>
+
+<script>
+  function $ (id) { return document.getElementById (id) }
+
+  var canvas = document.getElementsByTagName('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 3;
+  ctx.beginPath ();
+
+  var date;
+  var q = (location.search || '').replace (/^\?/, '').split (/[&;]/);
+  var param = {};
+  for (var i = 0; i < q.length; i++) {
+    var p = q[i].split (/=/);
+    param[p[0]] = p[1];
+  }
+  date = parseInt (param.date) || new Date ().valueOf ();
+  var url = 'server.cgi?date=' + date;
+
+  $('edit-link').href += ';date=' + date;
+  $('view-link').href += ';date=' + date;
+  $('prev-link').href += ';date=' + date;
+  $('next-link').href += ';date=' + date;
+
+  param.mode = param.mode || 'editor';
+  document.body.className = 'mode-' + param.mode;
+
+  if (param.mode == 'viewer') {
+    readRemoteImage ();
+    setInterval (readRemoteImage, 2000);
+  } else {
+    var drawing = false;
+    canvas.onmousedown = function (ev) {
+      drawing = true;
+      ctx.beginPath ();
+      var x = ev.clientX;
+      var y = ev.clientY;
+      ctx.moveTo (x, y);
+      write ('moveTo', x, y);
+    };
+    canvas.onmousemove = function (ev) {
+      if (drawing) {
+        var x = ev.clientX;
+        var y = ev.clientY;
+        ctx.lineTo (x, y);
+        write ('lineTo', x, y);
+        ctx.stroke ();
+//        ctx.closePath ();
+//        ctx.beginPath ();
+//        ctx.moveTo (x, y);
+      }
+    };
+    window.onmouseup = function (ev) {
+      if (!drawing) return;
+      ctx.stroke ();
+      ctx.closePath ();
+      drawing = false;
+    };
+
+    var newEvents = [];
+    function write () {
+      newEvents.push (Array.prototype.join.call (arguments, ','));
+    }
+    
+    readRemoteImage ();
+    setInterval (function () {
+      if (newEvents.length) {
+        var xhr = new XMLHttpRequest ();
+        xhr.open ('POST', url, true);
+        xhr.setRequestHeader ('Content-Type', 'text/plain');
+        xhr.send (newEvents.join (';'));
+        newEvents = [];
+      }
+    }, 2000);
+  }
+
+    function setProp (n, v) {
+      ctx[n] = v;
+      write (n, v);
+    }
+
+    function readRemoteImage () {
+      var xhr = new XMLHttpRequest ();
+      xhr.open ('GET', url, false);
+      xhr.setRequestHeader ('Cache-Control', 'no-cache');
+      xhr.send (null);
+      if (xhr.responseText) {
+        var events = xhr.responseText.split (/\x0A/);
+        if (events.length) {
+          canvas.width = canvas.width; // clear
+          processEvents(events);
+        }
+      }
+    }
+
+    function processEvents (events) {
+      for (var i = 0; i < events.length; i++) {
+        var ev = events[i].split (/,/);
+        if (ev[0] == 'lineTo') {
+          var x = parseFloat (ev[1]);
+          var y = parseFloat (ev[2]);
+          ctx.lineTo (x, y);
+          ctx.stroke ();
+//          ctx.closePath ();
+//          ctx.beginPath ();
+//          ctx.moveTo (x, y);
+        } else if (ev[0] == 'moveTo') {
+          var x = parseFloat (ev[1]);
+          var y = parseFloat (ev[2]);
+          ctx.moveTo (x, y);
+        } else if (ev[0] == 'strokeStyle' || ev[0] == 'lineWidth') {
+          ctx.closePath ();
+          ctx.beginPath ();
+          ctx[ev[0]] = ev[1];
+        }
+      }
+    }
+
+    function togglePanel () {
+      if ($('panel').hasAttribute ('hidden')) {
+        $('panel').removeAttribute ('hidden');
+      } else {
+        $('panel').setAttribute ('hidden', '');
+      }
+    }
+</script>
