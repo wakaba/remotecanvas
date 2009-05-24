@@ -80,11 +80,13 @@ menu {
 </section>
 
 <menu><a href="javascript:togglePanel ()" class=editor-only>Panel</a>
+<a href="javascript:savePNG ()" class=editor-only>PNGize</a>
 <a href="client.html?mode=editor" id=edit-link rel=edit class=viewer-only>Edit</a>
 <a href="client.html?mode=viewer" id=view-link class=editor-only>View</a>
 <a href="server.cgi?mode=list" rel=index>List</a>
 <a href="server.cgi?mode=prev" id=prev-link rel=prev>Prev</a>
 <a href="server.cgi?mode=next" id=next-link rel=next>Next</a>
+<a href="client.html?mode=editor" id=clone-link>Clone</a>
 <a href="client.html?mode=editor">New</a></menu>
 
 <script>
@@ -110,9 +112,16 @@ menu {
   $('view-link').href += ';date=' + date;
   $('prev-link').href += ';date=' + date;
   $('next-link').href += ';date=' + date;
+  $('clone-link').href += ';import-date=' + date;
 
   param.mode = param.mode || 'editor';
   document.body.className = 'mode-' + param.mode;
+
+  var newEvents = [];
+
+  if (param['import-date']) {
+    newEvents = readRemoteImage ('server.cgi?date=' + param['import-date']);
+  }
 
   if (param.mode == 'viewer') {
     readRemoteImage ();
@@ -146,7 +155,6 @@ menu {
       drawing = false;
     };
 
-    var newEvents = [];
     function write () {
       newEvents.push (Array.prototype.join.call (arguments, ','));
     }
@@ -168,9 +176,10 @@ menu {
       write (n, v);
     }
 
-    function readRemoteImage () {
+    function readRemoteImage (u) {
+      u = u || url;
       var xhr = new XMLHttpRequest ();
-      xhr.open ('GET', url, false);
+      xhr.open ('GET', u, false);
       xhr.setRequestHeader ('Cache-Control', 'no-cache');
       xhr.send (null);
       if (xhr.responseText) {
@@ -179,7 +188,9 @@ menu {
           canvas.width = canvas.width; // clear
           processEvents(events);
         }
+        return events;
       }
+      return [];
     }
 
     function processEvents (events) {
@@ -211,5 +222,16 @@ menu {
       } else {
         $('panel').setAttribute ('hidden', '');
       }
+    }
+
+    function savePNG () {
+      var data = canvas.toDataURL ('image/png');
+      var xhr = new XMLHttpRequest ();
+      xhr.open ('POST', url + ';mode=png', false);
+      xhr.setRequestHeader ('Content-Type', 'text/plain');
+      xhr.send (data);
+//      if (xhr.status == 201) {
+//        location.href = xhr.getResponseHeader ('Location');
+//      }
     }
 </script>
