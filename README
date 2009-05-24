@@ -12,6 +12,10 @@ $ chmod u+x server.cgi
 $ mkdir canvas-data
 $ your-browser path/to/client.html
 
+CVS
+
+<http://suika.fam.cx/www/canvas/remote/,cvslog>
+
 Author
 
 Wakaba <w@suika.fam.cx>.
